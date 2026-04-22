@@ -52,12 +52,36 @@ if ($aksi === 'save_event') {
     $tanggal = $_POST['tanggal'] ?? '';
     $idVenue = (int) ($_POST['id_venue'] ?? 0);
 
+    $gambar = null;
+    if (isset($_FILES['gambar']) && $_FILES['gambar']['error'] === UPLOAD_ERR_OK) {
+        $ext = pathinfo($_FILES['gambar']['name'], PATHINFO_EXTENSION);
+        $gambarName = uniqid('evt_', true) . '.' . $ext;
+        $targetDir = __DIR__ . '/img/';
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0777, true);
+        }
+        if (move_uploaded_file($_FILES['gambar']['tmp_name'], $targetDir . $gambarName)) {
+            $gambar = $gambarName;
+        }
+    }
+
     if ($idEvent > 0) {
-        $sql = 'UPDATE event SET nama_event=?, tanggal=?, id_venue=? WHERE id_event=?';
-        $pdo->prepare($sql)->execute([$namaEvent, $tanggal, $idVenue, $idEvent]);
+        if ($gambar) {
+            $old = $pdo->prepare('SELECT gambar FROM event WHERE id_event=?');
+            $old->execute([$idEvent]);
+            $oldGambar = $old->fetchColumn();
+            if ($oldGambar && file_exists(__DIR__ . '/img/' . $oldGambar)) {
+                unlink(__DIR__ . '/img/' . $oldGambar);
+            }
+            $sql = 'UPDATE event SET nama_event=?, tanggal=?, id_venue=?, gambar=? WHERE id_event=?';
+            $pdo->prepare($sql)->execute([$namaEvent, $tanggal, $idVenue, $gambar, $idEvent]);
+        } else {
+            $sql = 'UPDATE event SET nama_event=?, tanggal=?, id_venue=? WHERE id_event=?';
+            $pdo->prepare($sql)->execute([$namaEvent, $tanggal, $idVenue, $idEvent]);
+        }
     } else {
-        $sql = 'INSERT INTO event (nama_event, tanggal, id_venue) VALUES (?,?,?)';
-        $pdo->prepare($sql)->execute([$namaEvent, $tanggal, $idVenue]);
+        $sql = 'INSERT INTO event (nama_event, tanggal, id_venue, gambar) VALUES (?,?,?,?)';
+        $pdo->prepare($sql)->execute([$namaEvent, $tanggal, $idVenue, $gambar]);
     }
     flash_set('success', 'Data event tersimpan.');
     header('Location: index.php?page=event');
@@ -67,6 +91,14 @@ if ($aksi === 'save_event') {
 if ($aksi === 'delete_event') {
     require_login('admin');
     $idEvent = (int) ($_POST['id'] ?? 0);
+
+    $old = $pdo->prepare('SELECT gambar FROM event WHERE id_event=?');
+    $old->execute([$idEvent]);
+    $oldGambar = $old->fetchColumn();
+    if ($oldGambar && file_exists(__DIR__ . '/img/' . $oldGambar)) {
+        unlink(__DIR__ . '/img/' . $oldGambar);
+    }
+
     $pdo->prepare('DELETE FROM event WHERE id_event=?')->execute([$idEvent]);
     flash_set('success', 'Event dihapus.');
     header('Location: index.php?page=event');

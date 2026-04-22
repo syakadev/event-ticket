@@ -1,7 +1,7 @@
 <?php
 // Pencarian nama event (kosong = tampil semua)
 $kataKunci = trim($_GET['q'] ?? '');
-$sql = 'SELECT e.id_event, e.nama_event, e.tanggal, v.nama_venue, MIN(t.harga) AS min_price
+$sql = 'SELECT e.id_event, e.nama_event, e.tanggal, e.gambar, v.nama_venue, MIN(t.harga) AS min_price
     FROM event e
     LEFT JOIN venue v ON v.id_venue = e.id_venue
     LEFT JOIN tiket t ON t.id_event = e.id_event
@@ -23,6 +23,11 @@ $daftarEvent = $stmt->fetchAll();
 <?php foreach ($daftarEvent as $ev): ?>
     <div class="col-md-4">
         <div class="card card-modern h-100">
+            <?php if(!empty($ev['gambar'])): ?>
+                <img src="img/<?= e($ev['gambar']) ?>" class="card-img-top" alt="Event Img" style="height: 180px; object-fit: cover;">
+            <?php else: ?>
+                <div class="bg-secondary text-white d-flex align-items-center justify-content-center card-img-top" style="height: 180px;">No Cover</div>
+            <?php endif; ?>
             <div class="card-body">
                 <h5 class="card-title"><?= e($ev['nama_event']) ?></h5>
                 <p class="text-secondary mb-1"><?= e((string)($ev['nama_venue'] ?? '-')) ?></p>

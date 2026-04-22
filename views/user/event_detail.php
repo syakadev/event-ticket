@@ -14,11 +14,16 @@ $tickets = $pdo->prepare('SELECT * FROM tiket WHERE id_event=? ORDER BY harga AS
 $tickets->execute([$eventId]);
 $tickets = $tickets->fetchAll();
 ?>
-<div class="card card-modern mb-4"><div class="card-body">
-    <h4><?= e($event['nama_event']) ?></h4>
-    <p class="mb-1 text-secondary"><?= e((string) ($event['nama_venue'] ?? '-')) ?> — <?= e((string) ($event['alamat'] ?? '-')) ?></p>
-    <p class="mb-0"><?= e(date('d M Y', strtotime($event['tanggal']))) ?></p>
-</div></div>
+<div class="card card-modern mb-4">
+    <?php if(!empty($event['gambar'])): ?>
+        <img src="img/<?= e($event['gambar']) ?>" class="card-img-top" alt="Event Cover" style="max-height: 400px; object-fit: cover;">
+    <?php endif; ?>
+    <div class="card-body">
+        <h4><?= e($event['nama_event']) ?></h4>
+        <p class="mb-1 text-secondary"><?= e((string) ($event['nama_venue'] ?? '-')) ?> — <?= e((string) ($event['alamat'] ?? '-')) ?></p>
+        <p class="mb-0"><?= e(date('d M Y', strtotime($event['tanggal']))) ?></p>
+    </div>
+</div>
 <div class="card card-modern"><div class="card-body">
     <h5 class="mb-3">Pilih Tiket</h5>
     <div class="table-responsive">

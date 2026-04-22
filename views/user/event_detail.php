@@ -52,6 +52,7 @@ if (!empty($ticketIds)) {
             $kuota = (int) $t['kuota'];
             $sisa = $kuota - $terjual;
             $habis = $sisa <= 0;
+            $maxPesan = min($sisa, 1); // Batas maksimal 5 tiket per pesanan
         ?>
         <div class="card mb-3 <?= $habis ? 'bg-light' : '' ?>">
             <div class="card-body">
@@ -76,10 +77,26 @@ if (!empty($ticketIds)) {
                                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                                 <input type="hidden" name="tiket_id" value="<?= (int) $t['id_tiket'] ?>">
                                 <div class="col-4">
-                                    <input type="number" name="qty" class="form-control form-control-sm" min="1" max="<?= $sisa ?>" value="1" required title="Jumlah">
+                                    <label class="form-label small text-muted mb-1">Jumlah <span class="text-danger">(max 1)</span></label>
+                                    <input type="number" name="qty" class="form-control form-control-sm qty-input" min="1" max="<?= $maxPesan ?>" value="1" required title="Jumlah (maks. 5)" data-price="<?= (float) $t['harga'] ?>" data-ticket-id="<?= (int) $t['id_tiket'] ?>">
                                 </div>
                                 <div class="col-8">
-                                    <input type="text" name="voucher_code" class="form-control form-control-sm" placeholder="Kode voucher">
+                                    <label class="form-label small text-muted mb-1">Kode Voucher</label>
+                                    <input type="text" name="voucher_code" class="form-control form-control-sm" placeholder="Kode voucher (opsional)">
+                                </div>
+                                <div class="col-12">
+                                    <div class="d-flex justify-content-between align-items-center bg-light rounded px-3 py-2 mb-2 price-summary" id="price-summary-<?= (int) $t['id_tiket'] ?>">
+                                        <div>
+                                            <span class="small text-muted">Harga satuan:</span>
+                                            <span class="fw-semibold">Rp <?= number_format((float) $t['harga'], 0, ',', '.') ?></span>
+                                        </div>
+                                        <div>
+                                            <span class="small text-muted">×</span>
+                                            <span class="fw-bold qty-display" id="qty-display-<?= (int) $t['id_tiket'] ?>">1</span>
+                                            <span class="small text-muted">=</span>
+                                            <span class="fw-bold text-primary fs-6 total-display" id="total-display-<?= (int) $t['id_tiket'] ?>">Rp <?= number_format((float) $t['harga'], 0, ',', '.') ?></span>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="col-12">
                                     <button type="button" class="btn btn-sm btn-primary w-100" data-bs-toggle="modal" data-bs-target="#orderConfirmationModal" data-form-id="form-tiket-<?= (int) $t['id_tiket'] ?>" data-ticket-name="<?= e($t['nama_tiket']) ?>" data-ticket-price="<?= (float) $t['harga'] ?>">Pesan</button>
@@ -131,46 +148,77 @@ if (!empty($ticketIds)) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const MAX_TIKET = 5;
+    const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+
+    // ===== Live Price Calculation =====
+    document.querySelectorAll('.qty-input').forEach(function (input) {
+        function updatePrice() {
+            const price = parseFloat(input.getAttribute('data-price') || '0');
+            const ticketId = input.getAttribute('data-ticket-id');
+            let qty = parseInt(input.value, 10) || 1;
+            const maxVal = parseInt(input.getAttribute('max'), 10) || MAX_TIKET;
+
+            // Enforce limits
+            if (qty < 1) qty = 1;
+            if (qty > maxVal) qty = maxVal;
+            if (qty > MAX_TIKET) qty = MAX_TIKET;
+            input.value = qty;
+
+            const total = price * qty;
+            const qtyDisplay = document.getElementById('qty-display-' + ticketId);
+            const totalDisplay = document.getElementById('total-display-' + ticketId);
+
+            if (qtyDisplay) qtyDisplay.textContent = String(qty);
+            if (totalDisplay) totalDisplay.textContent = currencyFormatter.format(total);
+
+            // Animate the total price change
+            if (totalDisplay) {
+                totalDisplay.style.transition = 'transform 0.15s ease, color 0.15s ease';
+                totalDisplay.style.transform = 'scale(1.15)';
+                totalDisplay.style.color = '#0d6efd';
+                setTimeout(function() {
+                    totalDisplay.style.transform = 'scale(1)';
+                }, 200);
+            }
+        }
+
+        input.addEventListener('input', updatePrice);
+        input.addEventListener('change', updatePrice);
+    });
+
+    // ===== Modal Konfirmasi =====
     const orderModal = document.getElementById('orderConfirmationModal');
-    if (!orderModal) {
-        return;
-    }
+    if (!orderModal) return;
     let targetFormId = '';
 
     orderModal.addEventListener('show.bs.modal', function (event) {
         const button = event.relatedTarget;
-        if (!button) {
-            return;
-        }
+        if (!button) return;
 
         targetFormId = button.getAttribute('data-form-id') || '';
         const ticketName = button.getAttribute('data-ticket-name') || '';
         const ticketPrice = parseFloat(button.getAttribute('data-ticket-price') || '0');
 
         const form = document.getElementById(targetFormId);
-        if (!form) {
-            return;
-        }
-        const quantity = parseInt(form.querySelector('input[name="qty"]').value, 10) || 1;
+        if (!form) return;
+
+        let quantity = parseInt(form.querySelector('input[name="qty"]').value, 10) || 1;
+        if (quantity > MAX_TIKET) quantity = MAX_TIKET;
         const voucherCode = form.querySelector('input[name="voucher_code"]').value;
         const totalPrice = ticketPrice * quantity;
-        const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
         orderModal.querySelector('#modal-ticket-name').textContent = ticketName;
-        orderModal.querySelector('#modal-quantity').textContent = String(quantity);
+        orderModal.querySelector('#modal-quantity').textContent = String(quantity) + ' tiket';
         orderModal.querySelector('#modal-voucher-code').textContent = voucherCode || '-';
         orderModal.querySelector('#modal-ticket-price').textContent = currencyFormatter.format(ticketPrice);
         orderModal.querySelector('#modal-total-price').textContent = currencyFormatter.format(totalPrice);
     });
 
     orderModal.querySelector('#modal-confirm-button').addEventListener('click', function () {
-        if (!targetFormId) {
-            return;
-        }
+        if (!targetFormId) return;
         const formToSubmit = document.getElementById(targetFormId);
-        if (formToSubmit) {
-            formToSubmit.submit();
-        }
+        if (formToSubmit) formToSubmit.submit();
     });
 });
 </script>

@@ -202,6 +202,13 @@ if ($aksi === 'create_order') {
     require_login('user');
     $idTiket = (int) ($_POST['tiket_id'] ?? 0);
     $jumlah = max(1, (int) ($_POST['qty'] ?? 1));
+
+    // Batasan maksimal 5 tiket per pesanan
+    if ($jumlah > 5) {
+        flash_set('danger', 'Maksimal pemesanan adalah 5 tiket per pesanan.');
+        header('Location: index.php?page=event_detail&id=' . ((int) ($_GET['id'] ?? 0)));
+        exit;
+    }
     $kodeVoucherInput = strtoupper(trim($_POST['voucher_code'] ?? ''));
     $idEventHalaman = (int) ($_GET['id'] ?? 0);
 

@@ -13,6 +13,22 @@ if (!$event) {
 $tickets = $pdo->prepare('SELECT * FROM tiket WHERE id_event=? ORDER BY harga ASC');
 $tickets->execute([$eventId]);
 $tickets = $tickets->fetchAll();
+
+// --- Optimasi N+1 Query ---
+// Ambil semua jumlah tiket terjual dalam satu query
+$ticketIds = array_map(fn($t) => (int)$t['id_tiket'], $tickets);
+$soldData = [];
+if (!empty($ticketIds)) {
+    $placeholders = implode(',', array_fill(0, count($ticketIds), '?'));
+    $sqlSold = "SELECT od.id_tiket, SUM(od.qty) as total_sold 
+            FROM order_detail od 
+            JOIN orders o ON o.id_order=od.id_order 
+            WHERE od.id_tiket IN ($placeholders) AND o.status IN ('pending', 'paid') 
+            GROUP BY od.id_tiket";
+    $stmtSold = $pdo->prepare($sqlSold);
+    $stmtSold->execute($ticketIds);
+    $soldData = $stmtSold->fetchAll(PDO::FETCH_KEY_PAIR);
+}
 ?>
 <div class="card card-modern mb-4">
     <?php if(!empty($event['gambar'])): ?>
@@ -26,51 +42,55 @@ $tickets = $tickets->fetchAll();
 </div>
 <div class="card card-modern"><div class="card-body">
     <h5 class="mb-3">Pilih Tiket</h5>
-    <div class="table-responsive">
-        <table class="table table-striped align-middle"><thead><tr><th>Tiket</th><th>Harga</th><th>Sisa / Kuota</th><th>Status</th><th style="min-width: 14rem;">Pesan</th></tr></thead><tbody>
-        <?php foreach ($tickets as $t): ?>
-            <?php
-                $soldStmt = $pdo->prepare("SELECT COALESCE(SUM(od.qty),0) FROM order_detail od JOIN orders o ON o.id_order=od.id_order WHERE od.id_tiket=? AND o.status IN ('pending', 'paid', 'confirmed')");
-                $soldStmt->execute([(int) $t['id_tiket']]);
-                $terjual = (int) $soldStmt->fetchColumn();
-                $kuota = (int) $t['kuota'];
-                $sisa = $kuota - $terjual;
-                $habis = $sisa <= 0;
-            ?>
-            <tr class="<?= $habis ? 'table-secondary' : '' ?>">
-                <td><?= e($t['nama_tiket']) ?></td>
-                <td>Rp <?= number_format((float) $t['harga'], 0, ',', '.') ?></td>
-                <td><?= max(0, $sisa) ?> / <?= $kuota ?></td>
-                <td>
-                    <?php if ($habis): ?>
-                        <span class="badge text-bg-secondary">Habis</span>
-                    <?php else: ?>
-                        <span class="badge text-bg-success">Tersedia</span>
-                    <?php endif; ?>
-                </td>
-                <td>
-                    <?php if ($habis): ?>
-                        <span class="text-muted small">Tiket tidak dapat dipesan.</span>
-                    <?php else: ?>
-                        <form method="post" action="index.php?action=create_order&page=event_detail&id=<?= $eventId ?>" class="row g-2 align-items-center" id="form-tiket-<?= (int) $t['id_tiket'] ?>">
-                            <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
-                            <input type="hidden" name="tiket_id" value="<?= (int) $t['id_tiket'] ?>">
-                            <div class="col-4 col-sm-3 col-md-2">
-                                <input type="number" name="qty" class="form-control form-control-sm" min="1" max="<?= $sisa ?>" value="1" required>
-                            </div>
-                            <div class="col-8 col-sm-5 col-md-4">
-                                <input type="text" name="voucher_code" class="form-control form-control-sm" placeholder="Kode voucher">
-                            </div>
-                            <div class="col-12 col-sm-4 col-md-4 col-lg-3">
-                                <button type="button" class="btn btn-sm btn-primary w-100 w-sm-auto" data-bs-toggle="modal" data-bs-target="#orderConfirmationModal" data-form-id="form-tiket-<?= (int) $t['id_tiket'] ?>" data-ticket-name="<?= e($t['nama_tiket']) ?>" data-ticket-price="<?= (float) $t['harga'] ?>">Pesan</button>
-                            </div>
-                        </form>
-                    <?php endif; ?>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody></table>
-    </div>
+    <?php if (empty($tickets)): ?>
+        <div class="alert alert-light text-center border">Tidak ada tiket yang tersedia untuk event ini.</div>
+    <?php endif; ?>
+
+    <?php foreach ($tickets as $t): ?>
+        <?php
+            $terjual = (int) ($soldData[$t['id_tiket']] ?? 0);
+            $kuota = (int) $t['kuota'];
+            $sisa = $kuota - $terjual;
+            $habis = $sisa <= 0;
+        ?>
+        <div class="card mb-3 <?= $habis ? 'bg-light' : '' ?>">
+            <div class="card-body">
+                <div class="row align-items-center g-3">
+                    <div class="col-md-6 col-lg-7">
+                        <h6 class="mb-1 fw-bold"><?= e($t['nama_tiket']) ?></h6>
+                        <p class="mb-1 fs-5 fw-bold text-primary">Rp <?= number_format((float) $t['harga'], 0, ',', '.') ?></p>
+                        <div class="small text-muted">
+                            Sisa: <span class="fw-medium"><?= max(0, $sisa) ?></span> / Kuota: <?= $kuota ?>
+                            <?php if ($habis): ?>
+                                <span class="badge text-bg-secondary ms-2">Habis</span>
+                            <?php else: ?>
+                                <span class="badge text-bg-success ms-2">Tersedia</span>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-5">
+                        <?php if ($habis): ?>
+                            <p class="text-muted small mb-0 text-center text-md-start">Tiket tidak dapat dipesan.</p>
+                        <?php else: ?>
+                            <form method="post" action="index.php?action=create_order&page=event_detail&id=<?= $eventId ?>" class="row g-2 align-items-center" id="form-tiket-<?= (int) $t['id_tiket'] ?>">
+                                <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+                                <input type="hidden" name="tiket_id" value="<?= (int) $t['id_tiket'] ?>">
+                                <div class="col-4">
+                                    <input type="number" name="qty" class="form-control form-control-sm" min="1" max="<?= $sisa ?>" value="1" required title="Jumlah">
+                                </div>
+                                <div class="col-8">
+                                    <input type="text" name="voucher_code" class="form-control form-control-sm" placeholder="Kode voucher">
+                                </div>
+                                <div class="col-12">
+                                    <button type="button" class="btn btn-sm btn-primary w-100" data-bs-toggle="modal" data-bs-target="#orderConfirmationModal" data-form-id="form-tiket-<?= (int) $t['id_tiket'] ?>" data-ticket-name="<?= e($t['nama_tiket']) ?>" data-ticket-price="<?= (float) $t['harga'] ?>">Pesan</button>
+                                </div>
+                            </form>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endforeach; ?>
 </div></div>
 
 <!-- Modal Konfirmasi Pesanan -->

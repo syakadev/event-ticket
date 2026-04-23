@@ -15,11 +15,14 @@ $tickets->execute([$eventId]);
 $tickets = $tickets->fetchAll();
 
 // --- Optimasi N+1 Query ---
-// Ambil semua jumlah tiket terjual dalam satu query
+// Ambil semua jumlah tiket terjual (global) dalam satu query
 $ticketIds = array_map(fn($t) => (int)$t['id_tiket'], $tickets);
 $soldData = [];
+$userOrderedData = [];
 if (!empty($ticketIds)) {
     $placeholders = implode(',', array_fill(0, count($ticketIds), '?'));
+
+    // Kuota global terjual
     $sqlSold = "SELECT od.id_tiket, SUM(od.qty) as total_sold 
             FROM order_detail od 
             JOIN orders o ON o.id_order=od.id_order 
@@ -28,6 +31,17 @@ if (!empty($ticketIds)) {
     $stmtSold = $pdo->prepare($sqlSold);
     $stmtSold->execute($ticketIds);
     $soldData = $stmtSold->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    // Kuota yang sudah dipesan user ini per tiket
+    $sqlUserOrdered = "SELECT od.id_tiket, SUM(od.qty) as user_ordered 
+            FROM order_detail od 
+            JOIN orders o ON o.id_order=od.id_order 
+            WHERE od.id_tiket IN ($placeholders) AND o.id_user = ? AND o.status IN ('pending', 'paid') 
+            GROUP BY od.id_tiket";
+    $stmtUserOrdered = $pdo->prepare($sqlUserOrdered);
+    $paramsUser = array_merge($ticketIds, [$_SESSION['user_id']]);
+    $stmtUserOrdered->execute($paramsUser);
+    $userOrderedData = $stmtUserOrdered->fetchAll(PDO::FETCH_KEY_PAIR);
 }
 ?>
 <div class="card card-modern mb-4">
@@ -52,9 +66,18 @@ if (!empty($ticketIds)) {
             $kuota = (int) $t['kuota'];
             $sisa = $kuota - $terjual;
             $habis = $sisa <= 0;
-            $maxPesan = min($sisa, 1); // Batas maksimal 5 tiket per pesanan
+
+            // Per-user limit
+            $maksPerUser = (int) ($t['maks_per_user'] ?? 5);
+            $sudahDipesanUser = (int) ($userOrderedData[$t['id_tiket']] ?? 0);
+            $sisaKuotaUser = max(0, $maksPerUser - $sudahDipesanUser);
+            $userHabis = $sisaKuotaUser <= 0;
+
+            // Max yang bisa dipesan: minimum dari sisa kuota global dan sisa kuota user
+            $maxPesan = min($sisa, $sisaKuotaUser);
+            $tidakBisaPesan = $habis || $userHabis || $maxPesan <= 0;
         ?>
-        <div class="card mb-3 <?= $habis ? 'bg-light' : '' ?>">
+        <div class="card mb-3 <?= $tidakBisaPesan ? 'bg-light' : '' ?>">
             <div class="card-body">
                 <div class="row align-items-center g-3">
                     <div class="col-md-6 col-lg-7">
@@ -68,17 +91,43 @@ if (!empty($ticketIds)) {
                                 <span class="badge text-bg-success ms-2">Tersedia</span>
                             <?php endif; ?>
                         </div>
+                        <!-- Info batas per user -->
+                        <div class="small mt-1">
+                            <span class="text-muted">Batas per user:</span>
+                            <span class="fw-semibold"><?= $maksPerUser ?> tiket</span>
+                            <?php if ($sudahDipesanUser > 0): ?>
+                                <span class="text-muted mx-1">•</span>
+                                <span class="text-muted">Sudah dipesan:</span>
+                                <span class="fw-semibold text-info"><?= $sudahDipesanUser ?></span>
+                                <span class="text-muted mx-1">•</span>
+                                <span class="text-muted">Sisa kuota Anda:</span>
+                                <?php if ($sisaKuotaUser > 0): ?>
+                                    <span class="fw-bold text-success"><?= $sisaKuotaUser ?></span>
+                                <?php else: ?>
+                                    <span class="fw-bold text-danger">0 (batas tercapai)</span>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
                     </div>
                     <div class="col-md-6 col-lg-5">
-                        <?php if ($habis): ?>
-                            <p class="text-muted small mb-0 text-center text-md-start">Tiket tidak dapat dipesan.</p>
+                        <?php if ($tidakBisaPesan): ?>
+                            <div class="text-center text-md-start">
+                                <?php if ($habis): ?>
+                                    <p class="text-muted small mb-0">Tiket sudah habis.</p>
+                                <?php elseif ($userHabis): ?>
+                                    <div class="alert alert-warning small mb-0 py-2 px-3">
+                                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                        Anda sudah mencapai batas maksimal pemesanan (<strong><?= $maksPerUser ?> tiket</strong>) untuk tiket ini.
+                                    </div>
+                                <?php endif; ?>
+                            </div>
                         <?php else: ?>
                             <form method="post" action="index.php?action=create_order&page=event_detail&id=<?= $eventId ?>" class="row g-2 align-items-center" id="form-tiket-<?= (int) $t['id_tiket'] ?>">
                                 <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
                                 <input type="hidden" name="tiket_id" value="<?= (int) $t['id_tiket'] ?>">
                                 <div class="col-4">
-                                    <label class="form-label small text-muted mb-1">Jumlah <span class="text-danger">(max 1)</span></label>
-                                    <input type="number" name="qty" class="form-control form-control-sm qty-input" min="1" max="<?= $maxPesan ?>" value="1" required title="Jumlah (maks. 5)" data-price="<?= (float) $t['harga'] ?>" data-ticket-id="<?= (int) $t['id_tiket'] ?>">
+                                    <label class="form-label small text-muted mb-1">Jumlah <span class="text-danger">(max <?= $maxPesan ?>)</span></label>
+                                    <input type="number" name="qty" class="form-control form-control-sm qty-input" min="1" max="<?= $maxPesan ?>" value="1" required title="Jumlah (maks. <?= $maxPesan ?>)" data-price="<?= (float) $t['harga'] ?>" data-ticket-id="<?= (int) $t['id_tiket'] ?>" data-max-allowed="<?= $maxPesan ?>">
                                 </div>
                                 <div class="col-8">
                                     <label class="form-label small text-muted mb-1">Kode Voucher</label>
@@ -99,7 +148,7 @@ if (!empty($ticketIds)) {
                                     </div>
                                 </div>
                                 <div class="col-12">
-                                    <button type="button" class="btn btn-sm btn-primary w-100" data-bs-toggle="modal" data-bs-target="#orderConfirmationModal" data-form-id="form-tiket-<?= (int) $t['id_tiket'] ?>" data-ticket-name="<?= e($t['nama_tiket']) ?>" data-ticket-price="<?= (float) $t['harga'] ?>">Pesan</button>
+                                    <button type="button" class="btn btn-sm btn-primary w-100" data-bs-toggle="modal" data-bs-target="#orderConfirmationModal" data-form-id="form-tiket-<?= (int) $t['id_tiket'] ?>" data-ticket-name="<?= e($t['nama_tiket']) ?>" data-ticket-price="<?= (float) $t['harga'] ?>" data-max-allowed="<?= $maxPesan ?>">Pesan</button>
                                 </div>
                             </form>
                         <?php endif; ?>
@@ -148,7 +197,6 @@ if (!empty($ticketIds)) {
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const MAX_TIKET = 5;
     const currencyFormatter = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
     // ===== Live Price Calculation =====
@@ -156,13 +204,12 @@ document.addEventListener('DOMContentLoaded', function () {
         function updatePrice() {
             const price = parseFloat(input.getAttribute('data-price') || '0');
             const ticketId = input.getAttribute('data-ticket-id');
+            const maxAllowed = parseInt(input.getAttribute('data-max-allowed'), 10) || 1;
             let qty = parseInt(input.value, 10) || 1;
-            const maxVal = parseInt(input.getAttribute('max'), 10) || MAX_TIKET;
 
             // Enforce limits
             if (qty < 1) qty = 1;
-            if (qty > maxVal) qty = maxVal;
-            if (qty > MAX_TIKET) qty = MAX_TIKET;
+            if (qty > maxAllowed) qty = maxAllowed;
             input.value = qty;
 
             const total = price * qty;
@@ -199,12 +246,13 @@ document.addEventListener('DOMContentLoaded', function () {
         targetFormId = button.getAttribute('data-form-id') || '';
         const ticketName = button.getAttribute('data-ticket-name') || '';
         const ticketPrice = parseFloat(button.getAttribute('data-ticket-price') || '0');
+        const maxAllowed = parseInt(button.getAttribute('data-max-allowed'), 10) || 1;
 
         const form = document.getElementById(targetFormId);
         if (!form) return;
 
         let quantity = parseInt(form.querySelector('input[name="qty"]').value, 10) || 1;
-        if (quantity > MAX_TIKET) quantity = MAX_TIKET;
+        if (quantity > maxAllowed) quantity = maxAllowed;
         const voucherCode = form.querySelector('input[name="voucher_code"]').value;
         const totalPrice = ticketPrice * quantity;
 

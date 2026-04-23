@@ -15,19 +15,23 @@ $rows = $pdo->query("SELECT t.*, e.nama_event AS event_title, COALESCE(SUM(od.qt
         <div class="col-md-3"><select class="form-select" name="id_event" required><option value="">Pilih event</option><?php foreach($events as $e): ?><option value="<?= (int)$e['id_event'] ?>" <?= (int)($edit['id_event'] ?? 0)===(int)$e['id_event']?'selected':'' ?>><?= e($e['nama_event']) ?></option><?php endforeach; ?></select></div>
         <div class="col-md-3"><input class="form-control" name="nama_tiket" placeholder="Nama tiket" required value="<?= e($edit['nama_tiket'] ?? '') ?>"></div>
         <div class="col-md-2"><input class="form-control" type="number" min="0" name="harga" placeholder="Harga" required value="<?= e((string)($edit['harga'] ?? '')) ?>"></div>
-        <div class="col-md-2"><input class="form-control" type="number" min="1" name="kuota" placeholder="Kuota" required value="<?= e((string)($edit['kuota'] ?? '')) ?>"></div>
+        <div class="col-md-2"><input class="form-control" type="number" min="1" name="kuota" placeholder="Kuota total" required value="<?= e((string)($edit['kuota'] ?? '')) ?>"></div>
+        <div class="col-md-2">
+            <input class="form-control" type="number" min="1" name="maks_per_user" placeholder="Maks/user" required value="<?= e((string)($edit['maks_per_user'] ?? '5')) ?>" title="Batas maksimal tiket yang bisa dipesan per user">
+            <div class="form-text small text-muted mt-1">Maks tiket per user</div>
+        </div>
         <div class="col-md-2"><button class="btn btn-primary w-100">Simpan</button></div>
     </form>
 </div></div>
 <div class="card card-modern"><div class="card-body table-responsive">
-<table id="table-tiket" class="table table-striped"><thead><tr><th>Event</th><th>Tiket</th><th>Harga</th><th>Kuota</th><th>Terjual</th><th>Progress</th><th width="180">Aksi</th></tr></thead><tbody>
+<table id="table-tiket" class="table table-striped"><thead><tr><th>Event</th><th>Tiket</th><th>Harga</th><th>Kuota</th><th>Maks/User</th><th>Terjual</th><th>Progress</th><th width="180">Aksi</th></tr></thead><tbody>
 <?php foreach($rows as $r): ?><tr>
 <?php
     $kuota = max(1, (int)$r['kuota']);
     $terjual = (int)$r['sold_qty'];
     $persen = min(100, (int)round(($terjual / $kuota) * 100));
 ?>
-<td><?= e($r['event_title']) ?></td><td><?= e($r['nama_tiket']) ?></td><td>Rp <?= number_format((float)$r['harga'],0,',','.') ?></td><td><?= (int)$r['kuota'] ?></td><td><?= (int)$r['sold_qty'] ?></td>
+<td><?= e($r['event_title']) ?></td><td><?= e($r['nama_tiket']) ?></td><td>Rp <?= number_format((float)$r['harga'],0,',','.') ?></td><td><?= (int)$r['kuota'] ?></td><td><span class="badge text-bg-info"><?= (int)$r['maks_per_user'] ?></span></td><td><?= (int)$r['sold_qty'] ?></td>
 <td>
     <div class="small mb-1"><?= $terjual ?> / <?= (int)$r['kuota'] ?> (<?= $persen ?>%)</div>
     <div class="progress" style="height: 8px;">

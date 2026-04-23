@@ -113,6 +113,7 @@ if ($aksi === 'save_tiket') {
     $namaTiket = trim($_POST['nama_tiket'] ?? '');
     $harga = (int) ($_POST['harga'] ?? 0);
     $kuota = (int) ($_POST['kuota'] ?? 0);
+    $maksPerUser = max(1, (int) ($_POST['maks_per_user'] ?? 5));
 
     if ($idEvent <= 0 || $namaTiket === '' || $harga < 0) {
         flash_set('danger', 'Data tiket tidak valid.');
@@ -132,16 +133,16 @@ if ($aksi === 'save_tiket') {
             header('Location: index.php?page=tiket&edit=' . $idTiket);
             exit;
         }
-        $sql = 'UPDATE tiket SET id_event=?, nama_tiket=?, harga=?, kuota=? WHERE id_tiket=?';
-        $pdo->prepare($sql)->execute([$idEvent, $namaTiket, $harga, $kuota, $idTiket]);
+        $sql = 'UPDATE tiket SET id_event=?, nama_tiket=?, harga=?, kuota=?, maks_per_user=? WHERE id_tiket=?';
+        $pdo->prepare($sql)->execute([$idEvent, $namaTiket, $harga, $kuota, $maksPerUser, $idTiket]);
     } else {
         if ($kuota < 1) {
             flash_set('danger', 'Kuota minimal 1.');
             header('Location: index.php?page=tiket');
             exit;
         }
-        $sql = 'INSERT INTO tiket (id_event, nama_tiket, harga, kuota) VALUES (?,?,?,?)';
-        $pdo->prepare($sql)->execute([$idEvent, $namaTiket, $harga, $kuota]);
+        $sql = 'INSERT INTO tiket (id_event, nama_tiket, harga, kuota, maks_per_user) VALUES (?,?,?,?,?)';
+        $pdo->prepare($sql)->execute([$idEvent, $namaTiket, $harga, $kuota, $maksPerUser]);
     }
     flash_set('success', 'Data tiket tersimpan.');
     header('Location: index.php?page=tiket');
@@ -202,20 +203,13 @@ if ($aksi === 'create_order') {
     require_login('user');
     $idTiket = (int) ($_POST['tiket_id'] ?? 0);
     $jumlah = max(1, (int) ($_POST['qty'] ?? 1));
-
-    // Batasan maksimal 5 tiket per pesanan
-    if ($jumlah > 5) {
-        flash_set('danger', 'Maksimal pemesanan adalah 5 tiket per pesanan.');
-        header('Location: index.php?page=event_detail&id=' . ((int) ($_GET['id'] ?? 0)));
-        exit;
-    }
     $kodeVoucherInput = strtoupper(trim($_POST['voucher_code'] ?? ''));
     $idEventHalaman = (int) ($_GET['id'] ?? 0);
 
     $pdo->beginTransaction();
     try {
         // Kunci baris tiket supaya dua user tidak memesan melebihi kuota bersamaan
-        $sqlTiket = 'SELECT t.id_tiket, t.id_event, t.nama_tiket, t.harga, t.kuota, e.nama_event
+        $sqlTiket = 'SELECT t.id_tiket, t.id_event, t.nama_tiket, t.harga, t.kuota, t.maks_per_user, e.nama_event
             FROM tiket t
             JOIN event e ON e.id_event = t.id_event
             WHERE t.id_tiket = ? FOR UPDATE';
@@ -230,6 +224,31 @@ if ($aksi === 'create_order') {
             throw new RuntimeException('Tiket tidak sesuai dengan halaman event.');
         }
 
+        $maksPerUser = (int) $barisTiket['maks_per_user'];
+
+        // Validasi batas per pesanan (tidak boleh melebihi maks_per_user)
+        if ($jumlah > $maksPerUser) {
+            throw new RuntimeException('Maksimal pemesanan adalah ' . $maksPerUser . ' tiket per user untuk tiket ini.');
+        }
+
+        // Cek berapa tiket yang sudah dipesan user ini untuk jenis tiket yang sama
+        $sqlUserOrdered = "SELECT COALESCE(SUM(od.qty), 0)
+            FROM order_detail od
+            JOIN orders o ON o.id_order = od.id_order
+            WHERE od.id_tiket = ? AND o.id_user = ? AND o.status IN ('pending', 'paid')";
+        $stmtUserOrdered = $pdo->prepare($sqlUserOrdered);
+        $stmtUserOrdered->execute([$idTiket, $_SESSION['user_id']]);
+        $sudahDipesanUser = (int) $stmtUserOrdered->fetchColumn();
+
+        $sisaKuotaUser = $maksPerUser - $sudahDipesanUser;
+        if ($sisaKuotaUser <= 0) {
+            throw new RuntimeException('Anda sudah mencapai batas maksimal pemesanan (' . $maksPerUser . ' tiket) untuk tiket ini.');
+        }
+        if ($jumlah > $sisaKuotaUser) {
+            throw new RuntimeException('Anda hanya dapat memesan ' . $sisaKuotaUser . ' tiket lagi untuk tiket ini (batas: ' . $maksPerUser . '/user, sudah dipesan: ' . $sudahDipesanUser . ').');
+        }
+
+        // Cek kuota global
         $sqlTerjual = "SELECT COALESCE(SUM(od.qty), 0)
             FROM order_detail od
             JOIN orders o ON o.id_order = od.id_order

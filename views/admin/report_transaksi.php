@@ -1,16 +1,53 @@
 <?php
-$rows = $pdo->query('
+$start_date = $_GET['start_date'] ?? '';
+$end_date = $_GET['end_date'] ?? '';
+
+$params = [];
+$whereClause = "";
+if ($start_date && $end_date) {
+    $whereClause = " WHERE DATE(o.tanggal_order) BETWEEN :start_date AND :end_date";
+    $params[':start_date'] = $start_date;
+    $params[':end_date'] = $end_date;
+} elseif ($start_date) {
+    $whereClause = " WHERE DATE(o.tanggal_order) >= :start_date";
+    $params[':start_date'] = $start_date;
+} elseif ($end_date) {
+    $whereClause = " WHERE DATE(o.tanggal_order) <= :end_date";
+    $params[':end_date'] = $end_date;
+}
+
+$stmt = $pdo->prepare("
     SELECT o.id_order, o.tanggal_order, o.total, o.status, u.nama, v.kode_voucher,
            (SELECT COUNT(*) FROM attendee a JOIN order_detail od ON od.id_detail=a.id_detail WHERE od.id_order = o.id_order) as ticket_count 
     FROM orders o 
     JOIN users u ON u.id_user=o.id_user 
     LEFT JOIN voucher v ON v.id_voucher=o.id_voucher 
+    $whereClause
     ORDER BY o.id_order DESC
-')->fetchAll();
+");
+$stmt->execute($params);
+$rows = $stmt->fetchAll();
 ?>
 <div class="card card-modern">
     <div class="card-body">
         <h5 class="mb-3">Laporan Data Transaksi</h5>
+        
+        <form method="GET" action="index.php" class="row g-3 mb-4" id="filterForm">
+            <input type="hidden" name="page" value="report_transaksi">
+            <div class="col-md-4">
+                <label for="start_date" class="form-label">Tanggal Mulai</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" value="<?= e($start_date) ?>">
+            </div>
+            <div class="col-md-4">
+                <label for="end_date" class="form-label">Tanggal Akhir</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" value="<?= e($end_date) ?>">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">Filter</button>
+                <a href="index.php?page=report_transaksi" class="btn btn-secondary">Reset</a>
+            </div>
+        </form>
+
         <p class="text-muted mb-3 small">Alur: pending (belum bayar) → paid (menunggu admin) → admin terima = tiket terbit &amp; status <strong>accepted</strong>, atau ditolak / dibatalkan = <strong>cancel</strong>.</p>
         <div class="table-responsive">
             <table id="table-transaksi" class="table table-striped">
@@ -90,6 +127,19 @@ $rows = $pdo->query('
 <script src="https://cdn.datatables.net/buttons/3.0.2/js/buttons.print.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    const filterForm = document.getElementById('filterForm');
+    if (filterForm) {
+        filterForm.addEventListener('submit', function (e) {
+            const startDate = document.getElementById('start_date').value;
+            const endDate = document.getElementById('end_date').value;
+            
+            if (startDate && endDate && new Date(endDate) < new Date(startDate)) {
+                e.preventDefault();
+                alert('Peringatan: Tanggal akhir tidak boleh lebih kecil dari tanggal awal.');
+            }
+        });
+    }
+
     $('#table-transaksi').DataTable({
         "order": [[ 0, "desc" ]],
         layout: {

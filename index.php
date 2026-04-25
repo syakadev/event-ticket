@@ -1,8 +1,5 @@
 <?php
-/**
- * Pusat routing: baca ?page= dan ?action= lalu tampilkan view atau proses form.
- * Urutan: proses POST dulu, baru tampil halaman.
- */
+
 declare(strict_types=1);
 
 require_once __DIR__ . '/proses/bootstrap.php';

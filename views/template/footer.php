@@ -104,38 +104,6 @@
                 confirmModal.hide();
             });
 
-            // Dark Mode Toggle Logic
-            var themeToggleBtn = document.getElementById('darkModeToggle');
-            var iconDark = document.getElementById('themeIconDark');
-            var iconLight = document.getElementById('themeIconLight');
-
-            function updateThemeUI(theme) {
-                if (theme === 'dark') {
-                    iconDark.style.display = 'none';
-                    iconLight.style.display = 'block';
-                } else {
-                    // light theme
-                    iconDark.style.display = 'block';
-                    iconLight.style.display = 'none';
-                }
-            }
-
-            if (themeToggleBtn) {
-                var currentTheme = document.documentElement.getAttribute('data-bs-theme') || 'light';
-                updateThemeUI(currentTheme);
-
-                themeToggleBtn.addEventListener('click', function() {
-                    var theme = document.documentElement.getAttribute('data-bs-theme');
-                    var newTheme = theme === 'dark' ? 'light' : 'dark';
-                    document.documentElement.setAttribute('data-bs-theme', newTheme);
-                    localStorage.setItem('theme', newTheme);
-                    updateThemeUI(newTheme);
-                    
-                    // trigger event for chart js to update
-                    window.dispatchEvent(new Event('themeChanged'));
-                });
-            }
-
         })();
     </script>
 </body>

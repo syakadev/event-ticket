@@ -207,9 +207,6 @@ foreach ($salesData as $row) {
         }
 
         // initial color update
-        updateChartColors();
-
-        // listen for theme change
-        window.addEventListener('themeChanged', updateChartColors);
+        
     });
 </script>

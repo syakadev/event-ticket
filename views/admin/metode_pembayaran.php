@@ -32,7 +32,6 @@ if (isset($_GET['edit'])) {
                             <option value="">Pilih Jenis...</option>
                             <option value="Bank" <?= $editMode && $editData['jenis'] === 'Bank' ? 'selected' : '' ?>>Transfer Bank</option>
                             <option value="E-Wallet" <?= $editMode && $editData['jenis'] === 'E-Wallet' ? 'selected' : '' ?>>E-Wallet</option>
-                            <option value="QRIS" <?= $editMode && $editData['jenis'] === 'QRIS' ? 'selected' : '' ?>>QRIS</option>
                         </select>
                     </div>
                     

@@ -169,20 +169,6 @@ function tiket_terjual(PDO $pdo, int $idTiket): int
     return (int) $stmt->fetchColumn();
 }
 
-/** Kembalikan kuota voucher satu kali saat order dibatalkan. */
-function restore_voucher_quota(PDO $pdo, ?int $idVoucher): void
-{
-    if ($idVoucher !== null && $idVoucher > 0) {
-        $pdo->prepare('UPDATE voucher SET kuota = kuota + 1 WHERE id_voucher = ?')->execute([$idVoucher]);
-    }
-}
-
-/** Kode order unik (boleh dipakai kalau nanti kolom order_code dipakai di DB). */
-function order_code(): string
-{
-    return 'ORD-' . date('Ymd') . '-' . strtoupper(bin2hex(random_bytes(3)));
-}
-
 /** Kode tiket unik untuk peserta. */
 function ticket_code(): string
 {

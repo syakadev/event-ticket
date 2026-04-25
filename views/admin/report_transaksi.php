@@ -18,10 +18,12 @@ if ($start_date && $end_date) {
 
 $stmt = $pdo->prepare("
     SELECT o.id_order, o.tanggal_order, o.total, o.status, u.nama, v.kode_voucher,
-           (SELECT COUNT(*) FROM attendee a JOIN order_detail od ON od.id_detail=a.id_detail WHERE od.id_order = o.id_order) as ticket_count 
+           (SELECT COUNT(*) FROM attendee a JOIN order_detail od ON od.id_detail=a.id_detail WHERE od.id_order = o.id_order) as ticket_count,
+           p.bukti_pembayaran
     FROM orders o 
     JOIN users u ON u.id_user=o.id_user 
     LEFT JOIN voucher v ON v.id_voucher=o.id_voucher 
+    LEFT JOIN pembayaran p ON p.id_order=o.id_order
     $whereClause
     ORDER BY o.id_order DESC
 ");
@@ -51,7 +53,7 @@ $rows = $stmt->fetchAll();
         <p class="text-muted mb-3 small">Alur: pending (belum bayar) → paid (menunggu admin) → admin terima = tiket terbit &amp; status <strong>accepted</strong>, atau ditolak / dibatalkan = <strong>cancel</strong>.</p>
         <div class="table-responsive">
             <table id="table-transaksi" class="table table-striped">
-                <thead><tr><th>ID</th><th>User</th><th>Tanggal</th><th>Voucher</th><th>Status</th><th>Total</th><th>Aksi</th></tr></thead>
+                <thead><tr><th>ID</th><th>User</th><th>Tanggal</th><th>Voucher</th><th>Status</th><th>Total</th><th>Bukti</th><th>Aksi</th></tr></thead>
                 <tbody>
                 <?php foreach ($rows as $r): ?>
                     <?php
@@ -77,6 +79,13 @@ $rows = $stmt->fetchAll();
                         <td><?= e((string)($r['kode_voucher'] ?? '-')) ?></td>
                         <td><span class="badge bg-<?= $badge ?>"><?= e($displayStatus) ?></span></td>
                         <td>Rp <?= number_format((float)$r['total'], 0, ',', '.') ?></td>
+                        <td>
+                            <?php if (!empty($r['bukti_pembayaran'])): ?>
+                                <a href="img/bukti-pembayaran/<?= e($r['bukti_pembayaran']) ?>" target="_blank" class="btn btn-sm btn-outline-primary">Lihat</a>
+                            <?php else: ?>
+                                <span class="text-muted small">-</span>
+                            <?php endif; ?>
+                        </td>
                         <td>
                             <?php if ($displayStatus === 'paid'): ?>
                                 <div class="d-flex flex-wrap gap-1">

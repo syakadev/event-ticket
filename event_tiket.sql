@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Apr 20, 2026 at 01:38 AM
+-- Generation Time: Apr 25, 2026 at 03:42 AM
 -- Server version: 8.0.30
 -- PHP Version: 8.3.12
 
@@ -22,6 +22,7 @@ SET time_zone = "+00:00";
 --
 
 -- --------------------------------------------------------
+
 
 --
 -- Table structure for table `attendee`
@@ -79,7 +80,12 @@ INSERT INTO `attendee` (`id_attendee`, `id_detail`, `kode_tiket`, `status_checki
 (37, 36, 'TIX-9B6AB963B5', 'belum', NULL),
 (38, 36, 'TIX-69FFED90A8', 'belum', NULL),
 (39, 36, 'TIX-DF3D8FE2F0', 'belum', NULL),
-(40, 37, 'TIX-A24B1E50A8', 'belum', NULL);
+(40, 37, 'TIX-A24B1E50A8', 'belum', NULL),
+(41, 38, 'TIX-D08E63940A', 'sudah', '2026-04-20 10:11:51'),
+(42, 39, 'TIX-2CB9F38B5B', 'sudah', '2026-04-20 10:27:05'),
+(43, 40, 'TIX-C0E28ECF49', 'belum', NULL),
+(44, 43, 'TIX-FD58C2C701', 'belum', NULL),
+(45, 44, 'TIX-22F5DA36BE', 'belum', NULL);
 
 -- --------------------------------------------------------
 
@@ -91,15 +97,40 @@ CREATE TABLE `event` (
   `id_event` int NOT NULL,
   `nama_event` varchar(150) NOT NULL,
   `tanggal` date NOT NULL,
-  `id_venue` int DEFAULT NULL
+  `id_venue` int DEFAULT NULL,
+  `gambar` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `event`
 --
 
-INSERT INTO `event` (`id_event`, `nama_event`, `tanggal`, `id_venue`) VALUES
-(1, 'Tournament epep hadiah 1M', '2026-04-16', 6);
+INSERT INTO `event` (`id_event`, `nama_event`, `tanggal`, `id_venue`, `gambar`) VALUES
+(1, 'Tunggu Aku Sukses Nanti', '2026-04-30', 6, 'evt_69e847c84bc544.59651122.jpeg'),
+(3, 'Spiderman', '2026-04-30', 6, 'evt_69e846b150e885.08263144.jpg'),
+(4, 'Spider', '2026-05-07', 7, 'evt_69e980afbb7035.24698425.jpg');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `metode_pembayaran`
+--
+
+CREATE TABLE `metode_pembayaran` (
+  `id_metode` int NOT NULL,
+  `jenis` enum('Bank','E-Wallet','QRIS') NOT NULL,
+  `nama_penyedia` varchar(50) NOT NULL,
+  `nomor_akun` varchar(50) NOT NULL,
+  `nama_bisnis` varchar(100) DEFAULT NULL,
+  `qris_image` varchar(255) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `metode_pembayaran`
+--
+
+INSERT INTO `metode_pembayaran` (`id_metode`, `jenis`, `nama_penyedia`, `nomor_akun`, `nama_bisnis`, `qris_image`) VALUES
+(1, 'Bank', 'BCA', '849137183', 'Aku', 'qris_69e9a8595a03d2.09692564.jpg');
 
 -- --------------------------------------------------------
 
@@ -113,51 +144,64 @@ CREATE TABLE `orders` (
   `tanggal_order` datetime DEFAULT CURRENT_TIMESTAMP,
   `total` int NOT NULL,
   `status` enum('pending','paid','cancel') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT 'pending',
-  `id_voucher` int DEFAULT NULL
+  `id_voucher` int DEFAULT NULL,
+  `id_metode` int DEFAULT NULL,
+  `bukti_pembayaran` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `orders`
 --
 
-INSERT INTO `orders` (`id_order`, `id_user`, `tanggal_order`, `total`, `status`, `id_voucher`) VALUES
-(1, 5, '2026-04-16 08:20:42', 25000, 'paid', NULL),
-(2, 5, '2026-04-16 08:25:30', 25000, 'paid', NULL),
-(3, 5, '2026-04-16 08:26:27', 25000, 'paid', NULL),
-(4, 5, '2026-04-16 12:48:49', 25000, 'paid', NULL),
-(5, 5, '2026-04-16 12:49:50', 25000, 'paid', NULL),
-(6, 5, '2026-04-16 12:55:04', 25000, 'paid', NULL),
-(7, 5, '2026-04-16 13:16:34', 15000, 'paid', 1),
-(8, 5, '2026-04-16 13:40:43', 25000, 'paid', NULL),
-(9, 5, '2026-04-16 13:49:10', 25000, 'cancel', NULL),
-(10, 5, '2026-04-16 13:51:44', 25000, 'paid', NULL),
-(11, 5, '2026-04-16 13:54:39', 25000, 'cancel', NULL),
-(12, 5, '2026-04-16 13:55:07', 25000, 'cancel', NULL),
-(13, 5, '2026-04-16 13:56:27', 25000, 'cancel', NULL),
-(14, 5, '2026-04-16 13:58:03', 25000, 'cancel', NULL),
-(15, 5, '2026-04-16 13:58:34', 25000, 'cancel', NULL),
-(16, 5, '2026-04-16 14:00:59', 25000, 'cancel', NULL),
-(17, 5, '2026-04-16 14:03:43', 25000, 'cancel', NULL),
-(18, 5, '2026-04-16 14:07:18', 25000, 'cancel', NULL),
-(19, 5, '2026-04-16 14:08:58', 25000, 'cancel', NULL),
-(20, 5, '2026-04-16 14:10:06', 25000, 'cancel', NULL),
-(21, 5, '2026-04-16 14:12:13', 25000, 'cancel', NULL),
-(22, 5, '2026-04-16 14:15:49', 25000, 'cancel', NULL),
-(23, 5, '2026-04-16 14:34:10', 25000, 'cancel', NULL),
-(24, 5, '2026-04-16 14:39:09', 25000, 'cancel', NULL),
-(25, 5, '2026-04-16 14:41:53', 25000, 'cancel', NULL),
-(26, 5, '2026-04-16 14:42:18', 25000, 'cancel', NULL),
-(27, 5, '2026-04-16 14:43:54', 25000, 'cancel', NULL),
-(28, 5, '2026-04-17 09:50:43', 25000, 'cancel', NULL),
-(29, 5, '2026-04-17 09:51:45', 25000, 'cancel', NULL),
-(30, 5, '2026-04-19 20:58:19', 25000, 'paid', NULL),
-(31, 5, '2026-04-19 22:03:12', 25000, 'paid', NULL),
-(32, 5, '2026-04-19 22:03:28', 25000, 'pending', NULL),
-(33, 5, '2026-04-19 22:08:25', 25000, 'pending', NULL),
-(34, 5, '2026-04-19 22:14:49', 25000, 'paid', NULL),
-(35, 5, '2026-04-19 22:18:48', 25000, 'pending', NULL),
-(36, 5, '2026-04-19 22:21:39', 100000, 'cancel', NULL),
-(37, 5, '2026-04-20 08:33:53', 25000, 'pending', NULL);
+INSERT INTO `orders` (`id_order`, `id_user`, `tanggal_order`, `total`, `status`, `id_voucher`, `id_metode`, `bukti_pembayaran`) VALUES
+(1, 5, '2026-04-16 08:20:42', 25000, 'paid', NULL, NULL, NULL),
+(2, 5, '2026-04-16 08:25:30', 25000, 'paid', NULL, NULL, NULL),
+(3, 5, '2026-04-16 08:26:27', 25000, 'paid', NULL, NULL, NULL),
+(4, 5, '2026-04-16 12:48:49', 25000, 'paid', NULL, NULL, NULL),
+(5, 5, '2026-04-16 12:49:50', 25000, 'paid', NULL, NULL, NULL),
+(6, 5, '2026-04-16 12:55:04', 25000, 'paid', NULL, NULL, NULL),
+(7, 5, '2026-04-16 13:16:34', 15000, 'paid', 1, NULL, NULL),
+(8, 5, '2026-04-16 13:40:43', 25000, 'paid', NULL, NULL, NULL),
+(9, 5, '2026-04-16 13:49:10', 25000, 'cancel', NULL, NULL, NULL),
+(10, 5, '2026-04-16 13:51:44', 25000, 'paid', NULL, NULL, NULL),
+(11, 5, '2026-04-16 13:54:39', 25000, 'cancel', NULL, NULL, NULL),
+(12, 5, '2026-04-16 13:55:07', 25000, 'cancel', NULL, NULL, NULL),
+(13, 5, '2026-04-16 13:56:27', 25000, 'cancel', NULL, NULL, NULL),
+(14, 5, '2026-04-16 13:58:03', 25000, 'cancel', NULL, NULL, NULL),
+(15, 5, '2026-04-16 13:58:34', 25000, 'cancel', NULL, NULL, NULL),
+(16, 5, '2026-04-16 14:00:59', 25000, 'cancel', NULL, NULL, NULL),
+(17, 5, '2026-04-16 14:03:43', 25000, 'cancel', NULL, NULL, NULL),
+(18, 5, '2026-04-16 14:07:18', 25000, 'cancel', NULL, NULL, NULL),
+(19, 5, '2026-04-16 14:08:58', 25000, 'cancel', NULL, NULL, NULL),
+(20, 5, '2026-04-16 14:10:06', 25000, 'cancel', NULL, NULL, NULL),
+(21, 5, '2026-04-16 14:12:13', 25000, 'cancel', NULL, NULL, NULL),
+(22, 5, '2026-04-16 14:15:49', 25000, 'cancel', NULL, NULL, NULL),
+(23, 5, '2026-04-16 14:34:10', 25000, 'cancel', NULL, NULL, NULL),
+(24, 5, '2026-04-16 14:39:09', 25000, 'cancel', NULL, NULL, NULL),
+(25, 5, '2026-04-16 14:41:53', 25000, 'cancel', NULL, NULL, NULL),
+(26, 5, '2026-04-16 14:42:18', 25000, 'cancel', NULL, NULL, NULL),
+(27, 5, '2026-04-16 14:43:54', 25000, 'cancel', NULL, NULL, NULL),
+(28, 5, '2026-04-17 09:50:43', 25000, 'cancel', NULL, NULL, NULL),
+(29, 5, '2026-04-17 09:51:45', 25000, 'cancel', NULL, NULL, NULL),
+(30, 5, '2026-04-19 20:58:19', 25000, 'paid', NULL, NULL, NULL),
+(31, 5, '2026-04-19 22:03:12', 25000, 'paid', NULL, NULL, NULL),
+(32, 5, '2026-04-19 22:03:28', 25000, 'cancel', NULL, NULL, NULL),
+(33, 5, '2026-04-19 22:08:25', 25000, 'cancel', NULL, NULL, NULL),
+(34, 5, '2026-04-19 22:14:49', 25000, 'paid', NULL, NULL, NULL),
+(35, 5, '2026-04-19 22:18:48', 25000, 'cancel', NULL, NULL, NULL),
+(36, 5, '2026-04-19 22:21:39', 100000, 'cancel', NULL, NULL, NULL),
+(37, 5, '2026-04-20 08:33:53', 25000, 'paid', NULL, NULL, NULL),
+(38, 5, '2026-04-20 08:50:56', 25000, 'paid', NULL, NULL, NULL),
+(39, 9, '2026-04-20 10:15:12', 15000, 'paid', 1, NULL, NULL),
+(40, 9, '2026-04-21 09:42:33', 25000, 'paid', NULL, NULL, NULL),
+(41, 9, '2026-04-21 09:47:18', 25000, 'cancel', NULL, NULL, NULL),
+(42, 9, '2026-04-22 12:35:34', 115000, 'cancel', 1, NULL, NULL),
+(43, 9, '2026-04-22 13:41:37', 100000, 'paid', NULL, NULL, NULL),
+(44, 9, '2026-04-23 11:59:29', 100000, 'paid', NULL, 1, 'bukti_69e9a7c9c26053.06284174.jpg'),
+(45, 9, '2026-04-23 12:04:48', 150000, 'cancel', NULL, NULL, NULL),
+(46, 9, '2026-04-23 12:13:49', 100000, 'cancel', NULL, NULL, NULL),
+(47, 9, '2026-04-23 13:53:19', 100000, 'paid', NULL, NULL, NULL),
+(48, 9, '2026-04-23 14:09:56', 100000, 'cancel', NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -214,7 +258,35 @@ INSERT INTO `order_detail` (`id_detail`, `id_order`, `id_tiket`, `qty`, `subtota
 (34, 34, 1, 1, 25000),
 (35, 35, 1, 1, 25000),
 (36, 36, 1, 4, 100000),
-(37, 37, 1, 1, 25000);
+(37, 37, 1, 1, 25000),
+(38, 38, 1, 1, 25000),
+(39, 39, 1, 1, 25000),
+(40, 40, 1, 1, 25000),
+(41, 41, 1, 1, 25000),
+(42, 42, 1, 5, 125000),
+(43, 43, 4, 1, 100000),
+(44, 44, 4, 1, 100000),
+(45, 45, 3, 1, 150000),
+(46, 46, 4, 1, 100000),
+(47, 47, 4, 1, 100000),
+(48, 48, 4, 1, 100000);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `pembayaran`
+--
+
+CREATE TABLE `pembayaran` (
+  `id_pembayaran` int NOT NULL,
+  `id_order` int NOT NULL,
+  `id_metode` int NOT NULL,
+  `bukti_pembayaran` varchar(255) NOT NULL COMMENT 'Path file bukti transfer di img/bukti-pembayaran/',
+  `status_verifikasi` enum('menunggu','terverifikasi','ditolak') NOT NULL DEFAULT 'menunggu',
+  `catatan` text,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `verified_at` datetime DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -227,15 +299,19 @@ CREATE TABLE `tiket` (
   `id_event` int DEFAULT NULL,
   `nama_tiket` varchar(50) NOT NULL,
   `harga` int NOT NULL,
-  `kuota` int NOT NULL
+  `kuota` int NOT NULL,
+  `maks_per_user` int NOT NULL DEFAULT '5' COMMENT 'Batas maksimal pemesanan tiket per user'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `tiket`
 --
 
-INSERT INTO `tiket` (`id_tiket`, `id_event`, `nama_tiket`, `harga`, `kuota`) VALUES
-(1, 1, 'TOURNAMENT EPEP', 25000, 20);
+INSERT INTO `tiket` (`id_tiket`, `id_event`, `nama_tiket`, `harga`, `kuota`, `maks_per_user`) VALUES
+(1, 1, 'SKS VIP', 25000, 300, 5),
+(3, 4, 'SPD VIP', 150000, 100, 2),
+(4, 4, 'SPD REGULER', 100000, 200, 5),
+(5, 4, 'SPD VVIP', 350000, 50, 1);
 
 -- --------------------------------------------------------
 
@@ -259,7 +335,10 @@ INSERT INTO `users` (`id_user`, `nama`, `email`, `password`, `role`) VALUES
 (4, 'Syaka Dev', 'syaka@gmail.com', '$2y$10$.RGC.QFgYZbjEcHqBTE4UOCV34eHLiZPUDzuqWq1g48S1y5BJZ5L.', 'admin'),
 (5, 'Budi Santoso', 'budi@gmail.com', '$2y$10$.RGC.QFgYZbjEcHqBTE4UOCV34eHLiZPUDzuqWq1g48S1y5BJZ5L.', 'user'),
 (6, 'Siti Aminah', 'siti@gmail.com', '$2y$10$.RGC.QFgYZbjEcHqBTE4UOCV34eHLiZPUDzuqWq1g48S1y5BJZ5L.', 'user'),
-(7, 'Andi Wijaya', 'andi@gmail.com', '$2y$10$.RGC.QFgYZbjEcHqBTE4UOCV34eHLiZPUDzuqWq1g48S1y5BJZ5L.', 'user');
+(7, 'Andi Wijaya', 'andi@gmail.com', '$2y$10$.RGC.QFgYZbjEcHqBTE4UOCV34eHLiZPUDzuqWq1g48S1y5BJZ5L.', 'user'),
+(8, 'PETUGAS', 'petugas@gmail.com', '$2y$10$.RGC.QFgYZbjEcHqBTE4UOCV34eHLiZPUDzuqWq1g48S1y5BJZ5L.', 'petugas'),
+(9, 'azka', 'azka@gmail.com', '$2y$10$mDylfz2U2DE0i45rgCvGiuMrzzMfnMAYk4HxBvdOVodh4gmnEH9Ni', 'user'),
+(10, 'Tester', 'tester@example.com', '$2y$10$XTswH5k/6ZfIIenaK0FGsenaw0qJyEN14vQEAM0C3sjNrWwArpag6', 'user');
 
 -- --------------------------------------------------------
 
@@ -279,7 +358,8 @@ CREATE TABLE `venue` (
 --
 
 INSERT INTO `venue` (`id_venue`, `nama_venue`, `alamat`, `kapasitas`) VALUES
-(6, 'The Alon Alon epep', 'Kota Magelang', 10);
+(6, 'The Alon Alon', 'Kota Magelang', 2),
+(7, 'Artos Mall', 'Kota Magelang', 20);
 
 -- --------------------------------------------------------
 
@@ -300,13 +380,14 @@ CREATE TABLE `voucher` (
 --
 
 INSERT INTO `voucher` (`id_voucher`, `kode_voucher`, `potongan`, `kuota`, `status`) VALUES
-(1, 'SYAK1010', 10000, 99, 'aktif');
+(1, 'SYAK1010', 10000, 98, 'aktif'),
+(2, 'SPD1010', 35000, 10, 'aktif');
 
 --
 -- Indexes for dumped tables
 --
 
---
+
 -- Indexes for table `attendee`
 --
 ALTER TABLE `attendee`
@@ -322,12 +403,19 @@ ALTER TABLE `event`
   ADD KEY `id_venue` (`id_venue`);
 
 --
+-- Indexes for table `metode_pembayaran`
+--
+ALTER TABLE `metode_pembayaran`
+  ADD PRIMARY KEY (`id_metode`);
+
+--
 -- Indexes for table `orders`
 --
 ALTER TABLE `orders`
   ADD PRIMARY KEY (`id_order`),
   ADD KEY `id_user` (`id_user`),
-  ADD KEY `id_voucher` (`id_voucher`);
+  ADD KEY `id_voucher` (`id_voucher`),
+  ADD KEY `fk_metode` (`id_metode`);
 
 --
 -- Indexes for table `order_detail`
@@ -336,6 +424,14 @@ ALTER TABLE `order_detail`
   ADD PRIMARY KEY (`id_detail`),
   ADD KEY `id_order` (`id_order`),
   ADD KEY `id_tiket` (`id_tiket`);
+
+--
+-- Indexes for table `pembayaran`
+--
+ALTER TABLE `pembayaran`
+  ADD PRIMARY KEY (`id_pembayaran`),
+  ADD KEY `idx_pembayaran_order` (`id_order`),
+  ADD KEY `idx_pembayaran_metode` (`id_metode`);
 
 --
 -- Indexes for table `tiket`
@@ -368,53 +464,65 @@ ALTER TABLE `voucher`
 -- AUTO_INCREMENT for dumped tables
 --
 
---
+
 -- AUTO_INCREMENT for table `attendee`
 --
 ALTER TABLE `attendee`
-  MODIFY `id_attendee` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
+  MODIFY `id_attendee` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=46;
 
 --
 -- AUTO_INCREMENT for table `event`
 --
 ALTER TABLE `event`
-  MODIFY `id_event` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id_event` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT for table `metode_pembayaran`
+--
+ALTER TABLE `metode_pembayaran`
+  MODIFY `id_metode` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id_order` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `id_order` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=49;
 
 --
 -- AUTO_INCREMENT for table `order_detail`
 --
 ALTER TABLE `order_detail`
-  MODIFY `id_detail` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=38;
+  MODIFY `id_detail` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=49;
+
+--
+-- AUTO_INCREMENT for table `pembayaran`
+--
+ALTER TABLE `pembayaran`
+  MODIFY `id_pembayaran` int NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `tiket`
 --
 ALTER TABLE `tiket`
-  MODIFY `id_tiket` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id_tiket` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id_user` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id_user` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
 
 --
 -- AUTO_INCREMENT for table `venue`
 --
 ALTER TABLE `venue`
-  MODIFY `id_venue` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id_venue` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
 -- AUTO_INCREMENT for table `voucher`
 --
 ALTER TABLE `voucher`
-  MODIFY `id_voucher` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id_voucher` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- Constraints for dumped tables
@@ -436,6 +544,7 @@ ALTER TABLE `event`
 -- Constraints for table `orders`
 --
 ALTER TABLE `orders`
+  ADD CONSTRAINT `fk_metode` FOREIGN KEY (`id_metode`) REFERENCES `metode_pembayaran` (`id_metode`),
   ADD CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`id_user`) REFERENCES `users` (`id_user`),
   ADD CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`id_voucher`) REFERENCES `voucher` (`id_voucher`);
 
@@ -445,6 +554,13 @@ ALTER TABLE `orders`
 ALTER TABLE `order_detail`
   ADD CONSTRAINT `order_detail_ibfk_1` FOREIGN KEY (`id_order`) REFERENCES `orders` (`id_order`) ON DELETE CASCADE,
   ADD CONSTRAINT `order_detail_ibfk_2` FOREIGN KEY (`id_tiket`) REFERENCES `tiket` (`id_tiket`);
+
+--
+-- Constraints for table `pembayaran`
+--
+ALTER TABLE `pembayaran`
+  ADD CONSTRAINT `fk_pembayaran_metode` FOREIGN KEY (`id_metode`) REFERENCES `metode_pembayaran` (`id_metode`),
+  ADD CONSTRAINT `fk_pembayaran_order` FOREIGN KEY (`id_order`) REFERENCES `orders` (`id_order`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `tiket`

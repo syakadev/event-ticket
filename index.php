@@ -198,6 +198,36 @@ if ($aksi === 'delete_voucher') {
     exit;
 }
 
+// ---------- Admin: Metode Pembayaran ----------
+if ($aksi === 'save_metode_pembayaran') {
+    require_login('admin');
+    $idMetode = (int) ($_POST['id_metode'] ?? 0);
+    $jenis = $_POST['jenis'] ?? '';
+    $namaPenyedia = trim($_POST['nama_penyedia'] ?? '');
+    $nomorAkun = trim($_POST['nomor_akun'] ?? '');
+    $namaBisnis = trim($_POST['nama_bisnis'] ?? '');
+    
+    if ($idMetode > 0) {
+        $sql = 'UPDATE metode_pembayaran SET jenis=?, nama_penyedia=?, nomor_akun=?, nama_bisnis=? WHERE id_metode=?';
+        $pdo->prepare($sql)->execute([$jenis, $namaPenyedia, $nomorAkun, $namaBisnis, $idMetode]);
+    } else {
+        $sql = 'INSERT INTO metode_pembayaran (jenis, nama_penyedia, nomor_akun, nama_bisnis) VALUES (?,?,?,?)';
+        $pdo->prepare($sql)->execute([$jenis, $namaPenyedia, $nomorAkun, $namaBisnis]);
+    }
+    flash_set('success', 'Metode pembayaran tersimpan.');
+    header('Location: index.php?page=metode_pembayaran');
+    exit;
+}
+
+if ($aksi === 'delete_metode_pembayaran') {
+    require_login('admin');
+    $idMetode = (int) ($_POST['id_metode'] ?? 0);
+    $pdo->prepare('DELETE FROM metode_pembayaran WHERE id_metode=?')->execute([$idMetode]);
+    flash_set('success', 'Metode pembayaran dihapus.');
+    header('Location: index.php?page=metode_pembayaran');
+    exit;
+}
+
 // ---------- User: Buat pesanan (order) ----------
 if ($aksi === 'create_order') {
     require_login('user');
@@ -308,16 +338,68 @@ if ($aksi === 'create_order') {
     exit;
 }
 
-// ---------- User: Bayar (ubah status jadi paid) ----------
-if ($aksi === 'pay_order') {
+// ---------- User: Submit Pembayaran ----------
+if ($aksi === 'submit_payment') {
     require_login('user');
-    $idOrder = (int) ($_POST['order_id'] ?? 0);
-    $pdo->prepare("UPDATE orders SET status='paid' WHERE id_order=? AND id_user=? AND status='pending'")
-        ->execute([$idOrder, $_SESSION['user_id']]);
-    if ($idOrder > 0) {
-        $_SESSION['popup_order_paid'] = $idOrder;
+    $idOrder = (int) ($_POST['id_order'] ?? 0);
+    $idMetode = (int) ($_POST['id_metode'] ?? 0);
+    
+    // Validasi file upload
+    if (!isset($_FILES['bukti_pembayaran']) || $_FILES['bukti_pembayaran']['error'] !== UPLOAD_ERR_OK) {
+        flash_set('danger', 'Bukti pembayaran wajib diunggah.');
+        header('Location: index.php?page=payment&id_order=' . $idOrder);
+        exit;
     }
-    flash_set('success', 'Pembayaran tercatat. Menunggu konfirmasi admin.');
+    
+    // Pastikan order milik user
+    $stmtCheck = $pdo->prepare("SELECT id_order FROM orders WHERE id_order=? AND id_user=? AND status='pending'");
+    $stmtCheck->execute([$idOrder, $_SESSION['user_id']]);
+    if (!$stmtCheck->fetch()) {
+        flash_set('danger', 'Pesanan tidak valid.');
+        header('Location: index.php?page=my_orders');
+        exit;
+    }
+
+    $ext = strtolower(pathinfo($_FILES['bukti_pembayaran']['name'], PATHINFO_EXTENSION));
+    $allowed = ['jpg', 'jpeg', 'png'];
+    if (!in_array($ext, $allowed)) {
+        flash_set('danger', 'Format gambar tidak didukung. Gunakan JPG/PNG.');
+        header('Location: index.php?page=payment&id_order=' . $idOrder);
+        exit;
+    }
+    
+    if ($_FILES['bukti_pembayaran']['size'] > 2 * 1024 * 1024) {
+        flash_set('danger', 'Ukuran gambar maksimal 2MB.');
+        header('Location: index.php?page=payment&id_order=' . $idOrder);
+        exit;
+    }
+
+    $gambarName = uniqid('trx_', true) . '.' . $ext;
+    $targetDir = __DIR__ . '/img/bukti-pembayaran/';
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0777, true);
+    }
+    
+    $pdo->beginTransaction();
+    try {
+        if (move_uploaded_file($_FILES['bukti_pembayaran']['tmp_name'], $targetDir . $gambarName)) {
+            $pdo->prepare('INSERT INTO pembayaran (id_order, id_metode, bukti_pembayaran, status_verifikasi) VALUES (?,?,?,?)')
+                ->execute([$idOrder, $idMetode, $gambarName, 'menunggu']);
+                
+            $pdo->prepare("UPDATE orders SET status='paid' WHERE id_order=?")
+                ->execute([$idOrder]);
+                
+            $pdo->commit();
+            $_SESSION['popup_order_paid'] = $idOrder;
+            flash_set('success', 'Bukti pembayaran berhasil diunggah. Menunggu konfirmasi admin.');
+        } else {
+            throw new Exception("Gagal mengunggah file gambar.");
+        }
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        flash_set('danger', $e->getMessage());
+    }
+    
     header('Location: index.php?page=my_orders');
     exit;
 }
@@ -382,6 +464,7 @@ if ($aksi === 'accept_order') {
                     }
                 }
             }
+            $pdo->prepare("UPDATE pembayaran SET status_verifikasi='terverifikasi' WHERE id_order=?")->execute([$idOrder]);
             $pdo->commit();
             flash_set('success', 'Pembayaran diterima dan tiket telah diterbitkan.');
         } else {
@@ -401,6 +484,7 @@ if ($aksi === 'reject_order') {
     require_roles(['admin', 'petugas']);
     $idOrder = (int) ($_POST['order_id'] ?? 0);
     $pdo->prepare("UPDATE orders SET status='cancel' WHERE id_order=? AND status='paid'")->execute([$idOrder]);
+    $pdo->prepare("UPDATE pembayaran SET status_verifikasi='ditolak' WHERE id_order=?")->execute([$idOrder]);
     flash_set('success', 'Pesanan ditolak dan dibatalkan.');
     header('Location: index.php?page=report_transaksi');
     exit;
@@ -449,6 +533,7 @@ $page_roles = [
     'event' => 'admin',
     'tiket' => 'admin',
     'voucher' => 'admin',
+    'metode_pembayaran' => 'admin',
     'report_transaksi' => ['admin', 'petugas'],
     'report_tiket' => 'admin',
     'checkin' => ['admin', 'petugas'],
@@ -456,6 +541,7 @@ $page_roles = [
     'event_detail' => 'user',
     'my_orders' => 'user',
     'my_tickets' => 'user',
+    'payment' => 'user',
     'user_dashboard' => 'user',
 ];
 
@@ -487,6 +573,9 @@ switch ($halaman) {
     case 'voucher':
         require __DIR__ . '/views/admin/voucher.php';
         break;
+    case 'metode_pembayaran':
+        require __DIR__ . '/views/admin/metode_pembayaran.php';
+        break;
     case 'report_transaksi':
         require __DIR__ . '/views/admin/report_transaksi.php';
         break;
@@ -507,6 +596,9 @@ switch ($halaman) {
         break;
     case 'my_tickets':
         require __DIR__ . '/views/user/my_tickets.php';
+        break;
+    case 'payment':
+        require __DIR__ . '/views/user/payment.php';
         break;
     case 'user_dashboard':
     default:

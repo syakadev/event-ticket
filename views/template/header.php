@@ -141,6 +141,7 @@ if ($activePage === '' && (($_SESSION['role'] ?? '') === 'petugas')) {
                     <li class="nav-item"><a class="nav-link <?= $activePage === 'event' ? 'active' : '' ?>" href="index.php?page=event">Event</a></li>
                     <li class="nav-item"><a class="nav-link <?= $activePage === 'tiket' ? 'active' : '' ?>" href="index.php?page=tiket">Tiket</a></li>
                     <li class="nav-item"><a class="nav-link <?= $activePage === 'voucher' ? 'active' : '' ?>" href="index.php?page=voucher">Voucher</a></li>
+                    <li class="nav-item"><a class="nav-link <?= $activePage === 'metode_pembayaran' ? 'active' : '' ?>" href="index.php?page=metode_pembayaran">Metode Bayar</a></li>
                     <li class="nav-item"><a class="nav-link <?= $activePage === 'report_transaksi' ? 'active' : '' ?>" href="index.php?page=report_transaksi">Laporan</a></li>
                     <li class="nav-item"><a class="nav-link <?= $activePage === 'checkin' ? 'active' : '' ?>" href="index.php?page=checkin">Check-in</a></li>
                 <?php elseif (($_SESSION['role'] ?? '') === 'petugas'): ?>

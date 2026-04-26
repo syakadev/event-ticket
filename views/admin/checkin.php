@@ -25,8 +25,8 @@ $rows = $listStmt->fetchAll();
                 <label for="ticket_code" class="form-label small text-muted mb-1">Kode tiket</label>
                 <input id="ticket_code" name="ticket_code" class="form-control" placeholder="Input/scan kode tiket, contoh TIX-XXXX" required autocomplete="off">
             </div>
-            <div class="col-6 col-sm-6 col-lg-2 d-grid">
-                <button type="button" id="btnStartScan" class="btn btn-outline-secondary">Mulai Scan</button>
+            <div class="col-4 col-sm-4 col-lg-1 d-grid">
+                <!-- <button type="button" id="btnStartScan" class="btn btn-outline-secondary">Mulai Scan</button> -->
             </div>
             <div class="col-6 col-sm-6 col-lg-2 d-grid">
                 <button class="btn btn-primary">Check-in</button>

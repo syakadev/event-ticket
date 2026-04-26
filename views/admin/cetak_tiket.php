@@ -59,10 +59,8 @@ if (!$tiketData) {
 }
 
 .wristband {
-    /* Lebar standar gelang ditambah sedikit tinggi agar rileks */
     width: 260mm;
     height: 35mm;
-    /* Tema Elegan / Premium Festival: Navy & Gold */
     background: #111a2c;
     color: #ffffff;
     display: flex;

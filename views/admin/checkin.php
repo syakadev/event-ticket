@@ -60,11 +60,6 @@ $rows = $listStmt->fetchAll();
                 </tr>
                 </thead>
                 <tbody>
-                <?php if (!$rows): ?>
-                    <tr>
-                        <td colspan="10" class="text-center text-muted py-4">Tidak ada data.</td>
-                    </tr>
-                <?php endif; ?>
                 <?php foreach ($rows as $r): ?>
                     <tr>
                         <td><span class="fw-semibold"><?= e($r['kode_tiket']) ?></span></td>
@@ -110,7 +105,10 @@ $rows = $listStmt->fetchAll();
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         $('#table-checkin').DataTable({
-            "order": []
+            "order": [],
+            "language": {
+                "emptyTable": "Tidak ada data tiket yang statusnya sudah dikonfirmasi admin."
+            }
         });
 
         const inputKode = document.getElementById('ticket_code');
